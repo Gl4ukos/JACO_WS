@@ -1,0 +1,49 @@
+<launch>
+
+
+  <arg name="use_urdf" default="true"/>
+  <arg name="kinova_robotType" default="j2s6s300" />
+  <arg name="kinova_robotName" default="$(arg kinova_robotType)"/>
+	<arg name="kinova_robotSerial" default="not_set" />
+	<arg name="use_jaco_v1_fingers" default="false" />
+	<arg name="feedback_publish_rate" default="0.001" />
+
+  
+  <!-- If the node handles multiple robots uncomment this and configure /config/multiple_robots.yaml" -->
+  <node name="jaco_driver" pkg="jaco_control" type="jaco_control" output="screen" cwd="node" args="$(arg kinova_robotType)">
+    <rosparam file="$(find kinova_bringup)/launch/config/robot_parameters.yaml" command="load" />
+    <param name="serial_number" value="$(arg kinova_robotSerial)" />   
+    <param name="robot_name" value="$(arg kinova_robotName)" />   
+    <param name="robot_type" value="$(arg kinova_robotType)" />   
+    <param name="use_jaco_v1_fingers" value="$(arg use_jaco_v1_fingers)" />   
+    <param name="status_interval_seconds" value="$(arg feedback_publish_rate)" />
+  </node>
+
+  <group unless="$(arg use_urdf)">
+    <node name="$(arg kinova_robotName)_tf_updater" pkg="kinova_driver" type="kinova_tf_updater" output="screen" cwd="node" args="$(arg kinova_robotType)">
+      <remap from="/$(arg kinova_robotName)_tf_updater/in/joint_angles" to="/$(arg kinova_robotName)_driver/out/joint_angles"/>
+      <param name="base_frame" value="root"/>
+    </node>
+  </group>
+
+  <group if="$(arg use_urdf)">
+    <param name="robot_description" command="$(find xacro)/xacro --inorder $(find kinova_description)/urdf/$(arg kinova_robotType)_standalone.xacro" />
+    <node name="$(arg kinova_robotName)_state_publisher"
+           pkg="robot_state_publisher"
+          type="robot_state_publisher">
+      <remap from="joint_states" to="/$(arg kinova_robotName)_driver/out/joint_state"/>
+    </node>
+  </group>
+
+	<rosparam command="load" file="/home/orng/jaco_gamiesai/src/kinova-ros/kinova_moveit/robot_configs/j2s6s300_moveit_config/config/kinematics.yaml" />
+	<node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher" />
+	<param name="robot_description" command="$(find xacro)/xacro --inorder $(find kinova_description)/urdf/$(arg kinova_robotType)_standalone.xacro" />
+	<param name="robot_description_semantic" textfile="/home/orng/jaco_gamiesai/src/kinova-ros/kinova_moveit/robot_configs/j2s6s300_moveit_config/config/j2s6s300.srdf" />
+	<node name="move_group" pkg="moveit_ros_move_group" type="move_group" output="screen">
+	</node>
+
+
+	<node name="joint_state_publisher" pkg="jaco_control" type="joint_state_publisher" output="screen" >
+	</node>
+
+</launch>
